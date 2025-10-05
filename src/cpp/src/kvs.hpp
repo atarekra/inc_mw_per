@@ -369,6 +369,7 @@ class Kvs final {
         std::unique_ptr<score::mw::log::Logger> logger;
 
         /* Private Methods */
+        
         score::Result<size_t> get_file_size(const score::filesystem::Path& file_path);
         score::Result<size_t> get_current_storage_size();
         score::ResultBlank snapshot_rotate();

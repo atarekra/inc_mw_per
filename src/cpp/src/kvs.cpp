@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <filesystem>
 #include "internal/kvs_helper.hpp"
 #include "kvs.hpp"
 
@@ -376,32 +377,19 @@ score::ResultBlank Kvs::remove_key(const std::string_view key) {
 }
 
 /* Helper Function to get current storage size */
-
 score::Result<size_t> Kvs::get_file_size(const score::filesystem::Path& file_path) {
-    auto existence_result = filesystem->standard->Exists(file_path);
-    if (!existence_result) {
-        logger->LogError() << "Error: Could not check existence of file " << file_path;
-        return score::MakeUnexpected(static_cast<ErrorCode>(*existence_result.error()));
-    }
+    std::error_code ec;
+    const auto size = std::filesystem::file_size(file_path.CStr(), ec);
 
-    if (!existence_result.value()) {
-        // File does not exist, its size is 0. This is not an error.
-        return 0;
-    }
-
-    std::ifstream file_stream(file_path.CStr(), std::ios::binary | std::ios::ate);
-    if (!file_stream) {
-        logger->LogError() << "Error: Could not open file " << file_path << " to check size";
+    if (ec) {
+        if (ec == std::errc::no_such_file_or_directory) {
+            return 0;
+        }
+        logger->LogError() << "Error: Could not get size of file " << file_path << ": " << ec.message();
         return score::MakeUnexpected(ErrorCode::PhysicalStorageFailure);
     }
 
-    const std::streampos file_pos = file_stream.tellg();
-    if (file_pos == std::streampos(-1)) {
-        logger->LogError() << "Error: Could not determine size of file " << file_path;
-        return score::MakeUnexpected(ErrorCode::PhysicalStorageFailure);
-    }
-
-    return static_cast<size_t>(file_pos);
+    return size;
 }
 
 score::Result<size_t> Kvs::get_current_storage_size() {
